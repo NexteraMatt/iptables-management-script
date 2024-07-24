@@ -2,11 +2,30 @@
 
 This repository contains a script to manage iptables rules for allowing and blocking specific ports and services on a Linux server.
 
+## Recent Changes
+
+### Latest Version
+
+- **Enhanced Flexibility for HTTP/HTTPS**: The script now ensures HTTP (port 80) and HTTPS (port 443) ports can be closed explicitly via command-line arguments. If neither port 80 nor port 443 is opened, the script will check the configuration file and apply any/any rules for these ports if the file is empty.
+- **Better Error Handling**: Improved error messages and handling throughout the script.
+- **Detailed Logging**: Added more detailed logging to help debug issues when the script is run.
+- **Backup Verification**: Ensured the backup process is successful before proceeding with other actions.
+- **Enhanced Usage Function**: Provided more detailed examples and instructions in the usage function.
+
+### Previous Updates
+
+- **Custom Service Mapping**: Added mappings for non-standard services like Prometheus and Grafana.
+- **Initialization Improvements**: Set default policies and rules for loopback traffic and established connections.
+- **Dynamic Port Management**: Allows for dynamic opening and closing of specified ports and services.
+- **IP Configuration Handling**: Reads from a configuration file to apply specific IP rules for HTTP and HTTPS.
+
 ## Features
 
-- Open and close ports dynamically using port numbers or service names.
-- Manage allowed IP addresses for HTTP and HTTPS traffic.
-- Persist iptables rules across reboots using systemd.
+- **Open and Close Ports/Services**: Open or close multiple ports or services specified in the command line arguments.
+- **Configuration File**: If the configuration file (`allowed_ips.conf`) is empty, HTTP and HTTPS traffic is allowed from any source. If the file contains IP addresses, only those IPs are allowed to access HTTP and HTTPS.
+- **Custom Service Mapping**: Includes custom mappings for services like Prometheus and Grafana that might not be listed in the system's `/etc/services` file.
+- **Persistence**: Saves iptables rules and ensures they are restored on system startup using a systemd service.
+
 
 ## Prerequisites
 
@@ -53,6 +72,15 @@ To run the script, use the following command:
 ```bash
 ./iptables_rules.sh --close redis
 ```
+### Open multiple ports:
+```bash
+./iptables_rules.sh --open 3001 http prometheus 9100 grafana 8080
+```
+### Close multiple ports:
+```bash
+./iptables_rules.sh --close 3001 http prometheus 9100 grafana 8080
+```
+
 
 ## Configuration
 You can specify allowed IP addresses for HTTP and HTTPS traffic in the allowed_ips.conf file. Each line should contain a single IP address.
