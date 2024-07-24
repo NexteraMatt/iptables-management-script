@@ -3,6 +3,10 @@
 CONFIG_FILE="allowed_ips.conf"
 BACKUP_FILE="/etc/sysconfig/iptables.backup"
 
+# Custom service mappings for non-standard services
+declare -A CUSTOM_SERVICES
+CUSTOM_SERVICES=( ["prometheus"]=9090 ["grafana"]=3000 )
+
 # Function to validate IP addresses
 validate_ip() {
   local ip=$1
@@ -18,16 +22,23 @@ validate_ip() {
 resolve_service_to_port() {
   local service=$1
   local protocol=${2:-tcp}
-  local port=$(getent services "$service/$protocol" | awk '{print $2}' | cut -d'/' -f1)
-  echo "$port"
+  if [[ -n ${CUSTOM_SERVICES[$service]} ]]; then
+    echo "${CUSTOM_SERVICES[$service]}"
+  else
+    local port=$(getent services "$service/$protocol" | awk '{print $2}' | cut -d'/' -f1)
+    echo "$port"
+  fi
 }
 
 # Function to show usage information
 usage() {
-  echo "Usage: $0 [--open PORT/SERVICE] [--close PORT/SERVICE] ..."
+  echo "Usage: $0 [--open PORT/SERVICE ...] [--close PORT/SERVICE ...]"
   echo "Options:"
-  echo "  --open PORT/SERVICE    Open the specified PORT or SERVICE"
-  echo "  --close PORT/SERVICE   Close the specified PORT or SERVICE"
+  echo "  --open PORT/SERVICE ...    Open the specified PORTs or SERVICEs"
+  echo "  --close PORT/SERVICE ...   Close the specified PORTs or SERVICEs"
+  echo "Examples:"
+  echo "  $0 --open 80 443"
+  echo "  $0 --close prometheus grafana"
   exit 1
 }
 
@@ -72,45 +83,49 @@ apply_ip_rules() {
 
 # Function to apply port rules based on arguments
 apply_port_rules() {
+  local action=""
+  local open_http_https=false
   while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-      --open)
-        if [[ $2 =~ ^[0-9]+$ ]]; then
-          local port=$2
-        else
-          local port=$(resolve_service_to_port "$2")
-          if [[ -z $port ]]; then
-            echo "Invalid service: $2"
-            usage
-          fi
-        fi
-        echo "Opening port/service $2 (resolved to port $port)..."
-        iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
-        shift
-        shift
-        ;;
-      --close)
-        if [[ $2 =~ ^[0-9]+$ ]]; then
-          local port=$2
-        else
-          local port=$(resolve_service_to_port "$2")
-          if [[ -z $port ]]; then
-            echo "Invalid service: $2"
-            usage
-          fi
-        fi
-        echo "Closing port/service $2 (resolved to port $port)..."
-        iptables -D INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || echo "Port $port is not open."
-        shift
+      --open|--close)
+        action=$1
         shift
         ;;
       *)
-        echo "Unknown option: $1"
-        usage
+        if [[ -n $action ]]; then
+          if [[ $1 =~ ^[0-9]+$ ]]; then
+            local port=$1
+          else
+            local port=$(resolve_service_to_port "$1")
+            if [[ -z $port ]]; then
+              echo "Invalid service: $1"
+              usage
+            fi
+          fi
+          if [[ $port == 80 || $port == 443 ]]; then
+            open_http_https=true
+          fi
+          if [[ $action == "--open" ]]; then
+            echo "Opening port/service $1 (resolved to port $port)..."
+            iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
+          elif [[ $action == "--close" ]]; then
+            echo "Closing port/service $1 (resolved to port $port)..."
+            iptables -D INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || echo "Port $port is not open."
+          fi
+        else
+          echo "Unknown option: $1"
+          usage
+        fi
+        shift
         ;;
     esac
   done
+
+  # If opening ports, ensure HTTP and HTTPS are open if the config file is empty
+  if [[ $action == "--open" && $open_http_https == false ]]; then
+    apply_ip_rules
+  fi
 }
 
 # Main script execution
@@ -132,7 +147,7 @@ fi
 
 if [ -f /etc/sysconfig/iptables ]; then
   echo "Backing up existing iptables rules..."
-  cp /etc/sysconfig/iptables $BACKUP_FILE
+  cp /etc/sysconfig/iptables $BACKUP_FILE || { echo "Failed to back up iptables rules"; exit 1; }
 fi
 
 initialize_iptables
