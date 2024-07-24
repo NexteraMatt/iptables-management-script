@@ -30,3 +30,11 @@ To run the script, use the following command:
 ```bash
 ./iptables_rules.sh --close redis
 ```
+## Configuration
+You can specify allowed IP addresses for HTTP and HTTPS traffic in the allowed_ips.conf file. Each line should contain a single IP address.
+
+## License
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+## Contributing
+Contributions are welcome! Please open an issue or submit a pull request.
