@@ -1,6 +1,16 @@
 # iptables-management-script
 
-This repository contains a script to manage iptables rules for allowing and blocking specific ports and services on a Linux server.
+This script provides a robust and flexible solution for managing iptables rules on a Linux server. It allows administrators to dynamically open and close ports or services, ensuring that network traffic is controlled according to the specified rules. The script also supports configuration files to manage specific IP address rules for HTTP and HTTPS traffic, ensuring secure and customized access.
+
+
+## Features
+
+- **Dynamic Port Management**: Open and close multiple ports or services dynamically through command-line arguments.
+- **Configuration File Support**: Apply specific IP address rules for HTTP and HTTPS traffic based on the `allowed_ips.conf` file. If the file is empty, any/any traffic is allowed for these ports.
+- **Custom Service Mapping**: Includes custom mappings for services like Prometheus and Grafana, which might not be listed in the system's `/etc/services` file.
+- **Persistent Rules**: Saves iptables rules and ensures they are restored on system startup using a systemd service.
+- **Detailed Logging**: Logs dropped packets to assist with debugging and monitoring.
+
 
 ## Recent Changes
 
@@ -18,13 +28,6 @@ This repository contains a script to manage iptables rules for allowing and bloc
 - **Initialization Improvements**: Set default policies and rules for loopback traffic and established connections.
 - **Dynamic Port Management**: Allows for dynamic opening and closing of specified ports and services.
 - **IP Configuration Handling**: Reads from a configuration file to apply specific IP rules for HTTP and HTTPS.
-
-## Features
-
-- **Open and Close Ports/Services**: Open or close multiple ports or services specified in the command line arguments.
-- **Configuration File**: If the configuration file (`allowed_ips.conf`) is empty, HTTP and HTTPS traffic is allowed from any source. If the file contains IP addresses, only those IPs are allowed to access HTTP and HTTPS.
-- **Custom Service Mapping**: Includes custom mappings for services like Prometheus and Grafana that might not be listed in the system's `/etc/services` file.
-- **Persistence**: Saves iptables rules and ensures they are restored on system startup using a systemd service.
 
 
 ## Prerequisites
@@ -81,6 +84,10 @@ To run the script, use the following command:
 ./iptables_rules.sh --close 3001 http prometheus 9100 grafana 8080
 ```
 
+## Verify Rules
+```bash
+sudo iptables -L -v
+```
 
 ## Configuration
 You can specify allowed IP addresses for HTTP and HTTPS traffic in the allowed_ips.conf file. Each line should contain a single IP address.
